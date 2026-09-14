@@ -4,41 +4,180 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 
-# ... [Giữ nguyên các hàm tao_bang_bien_thien_latex, tinh_toan_khung_do_thi, ve_do_thi_sgk, sinh_ma_tikz của bạn] ...
-
-def tao_bang_bien_thien_latex(y, y_prime, x, nghiem_thuc, nghiem_mau):
+# ==========================================
+# 1. HÀM VẼ BẢNG BIẾN THIÊN TRÊN WEB (An toàn với KaTeX - Không dùng multicolumn)
+# ==========================================
+def tao_bang_bien_thien_latex(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
     diem = sorted(list(set(nghiem_thuc + nghiem_mau)))
     n_cols = 2 * len(diem) + 4
     test_pts = [0] if not diem else [diem[0] - 1] + [(diem[i] + diem[i+1])/2 for i in range(len(diem)-1)] + [diem[-1] + 1]
-        
+
     dau_yp = []
     for tp in test_pts:
-        val = y_prime.subs(x, tp)
+        val = y_prime.subs(x_sym, tp)
         dau_yp.append("+" if val > 0 else ("-" if val < 0 else "0"))
+
+    def fmt_y_val(val, height):
+        if val == sp.oo: s = r"+\infty"
+        elif val == -sp.oo: s = r"-\infty"
+        else: s = sp.latex(sp.simplify(val))
+
+        if height == "HIGH":
+            return fr"\begin{{matrix}} {s} \\ \phantom{{0}} \\ \phantom{{0}} \end{{matrix}}"
+        elif height == "LOW":
+            return fr"\begin{{matrix}} \phantom{{0}} \\ \phantom{{0}} \\ {s} \end{{matrix}}"
+        else:
+            return fr"\begin{{matrix}} \phantom{{0}} \\ {s} \\ \phantom{{0}} \end{{matrix}}"
 
     row_x, row_yp, row_y = [""] * n_cols, [""] * n_cols, [""] * n_cols
     row_x[0], row_yp[0], row_y[0] = "x", "y'", "y"
-    row_x[1], row_x[-1] = r"-\infty", r"+\infty"
-    row_y[1] = sp.latex(sp.limit(y, x, -sp.oo))
-    row_y[-1] = sp.latex(sp.limit(y, x, sp.oo))
 
+    # Cực trái
+    row_x[1] = r"-\infty"
+    ht_am = "LOW" if dau_yp[0] == "+" else "HIGH"
+    lim_am = sp.limit(y_sym, x_sym, -sp.oo)
+    row_y[1] = fmt_y_val(lim_am, ht_am)
+
+    # Cực phải
+    row_x[-1] = r"+\infty"
+    ht_duong = "HIGH" if dau_yp[-1] == "+" else "LOW"
+    lim_duong = sp.limit(y_sym, x_sym, sp.oo)
+    row_y[-1] = fmt_y_val(lim_duong, ht_duong)
+
+    # Các khoảng mũi tên
     for i in range(len(diem) + 1):
         col_idx = 2 + 2 * i
-        row_yp[col_idx] = dau_yp[i]
-        row_y[col_idx] = r"\nearrow" if dau_yp[i] == "+" else (r"\searrow" if dau_yp[i] == "-" else r"\rightarrow")
+        row_yp[col_idx] = fr"\quad {dau_yp[i]} \quad"
+        arrow = r"\nearrow" if dau_yp[i] == "+" else (r"\searrow" if dau_yp[i] == "-" else r"\rightarrow")
+        row_y[col_idx] = fr"\begin{{matrix}} \phantom{{0}} \\ {arrow} \\ \phantom{{0}} \end{{matrix}}"
 
+    # Các điểm tới hạn / Tiệm cận
     for i in range(len(diem)):
         col_idx = 3 + 2 * i
-        row_x[col_idx] = sp.latex(sp.together(diem[i]))
-        if diem[i] in nghiem_mau:
-            row_yp[col_idx], row_y[col_idx] = "||", "||"
+        pt = diem[i]
+        row_x[col_idx] = sp.latex(sp.together(pt))
+        prev_sign = dau_yp[i]
+        next_sign = dau_yp[i+1]
+
+        if pt in nghiem_mau:
+            row_yp[col_idx] = r"\Vert"
+            lim_trai = sp.limit(y_sym, x_sym, pt, dir='-')
+            ht_trai = "HIGH" if prev_sign == "+" else "LOW"
+            s_trai = fmt_y_val(lim_trai, ht_trai)
+            
+            lim_phai = sp.limit(y_sym, x_sym, pt, dir='+')
+            ht_phai = "LOW" if next_sign == "+" else "HIGH"
+            s_phai = fmt_y_val(lim_phai, ht_phai)
+
+            s_vert = r"\begin{matrix} \Vert \\ \Vert \\ \Vert \end{matrix}"
+            row_y[col_idx] = fr"{s_trai} \,\, {s_vert} \,\, {s_phai}"
         else:
             row_yp[col_idx] = "0"
-            row_y[col_idx] = sp.latex(sp.together(sp.simplify(y.subs(x, diem[i]))))
+            val_pt = y_sym.subs(x_sym, pt)
+            
+            # Xử lý độ cao neo (Cao, Thấp, hoặc Bậc thang ở giữa)
+            if prev_sign == "+" and next_sign == "-": ht = "HIGH"
+            elif prev_sign == "-" and next_sign == "+": ht = "LOW"
+            else: ht = "MID"
+            
+            row_y[col_idx] = fmt_y_val(val_pt, ht)
 
     cols_format = "|c|" + "c" * (n_cols - 1) + "|"
-    return r"\begin{array}{" + cols_format + r"} \hline " + " & ".join(row_x) + r" \\ \hline " + " & ".join(row_yp) + r" \\ \hline " + " & ".join(row_y) + r" \\ \hline \end{array}"
+    latex_str = (
+        r"\begin{array}{" + cols_format + r"} \hline " + "\n" +
+        " & ".join(row_x) + r" \\ \hline " + "\n" +
+        " & ".join(row_yp) + r" \\ \hline " + "\n" +
+        " & ".join(row_y) + r" \\ \hline " + "\n" +
+        r"\end{array}"
+    )
+    return latex_str
 
+# ==========================================
+# 2. HÀM XUẤT MÃ LATEX BẢNG BIẾN THIÊN (TKZ-TAB CHUẨN OVERLEAF)
+# ==========================================
+def sinh_ma_bbt_tikz(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
+    diem = sorted(list(set(nghiem_thuc + nghiem_mau)))
+    
+    test_pts = []
+    if not diem:
+        test_pts.append(0)
+    else:
+        test_pts.append(float(diem[0]) - 1)
+        for i in range(len(diem) - 1):
+            test_pts.append(float(diem[i] + diem[i+1]) / 2)
+        test_pts.append(float(diem[-1]) + 1)
+        
+    dau_yp = []
+    for tp in test_pts:
+        val = y_prime.subs(x_sym, tp)
+        dau_yp.append("+" if val > 0 else "-")
+        
+    def fmt(val):
+        if val == sp.oo: return r"$+\infty$"
+        if val == -sp.oo: return r"$-\infty$"
+        return f"${sp.latex(sp.simplify(val))}$"
+
+    x_row_items = [r"-\infty"] + [sp.latex(sp.together(d)) for d in diem] + [r"+\infty"]
+    x_str = "{" + ", ".join([f"${item}$" for item in x_row_items]) + "}"
+    
+    tkz_tab_line = []
+    for i, pt in enumerate(diem):
+        tkz_tab_line.append(dau_yp[i])
+        if pt in nghiem_mau:
+            tkz_tab_line.append("d")
+        else:
+            tkz_tab_line.append("0")
+    tkz_tab_line.append(dau_yp[-1])
+    y_prime_str = "\\tkzTabLine{ , " + ", ".join(tkz_tab_line) + ", }"
+    
+    tkz_tab_var = []
+    val_inf_am = sp.limit(y_sym, x_sym, -sp.oo)
+    tkz_tab_var.append(f"-/ {fmt(val_inf_am)}" if dau_yp[0] == '+' else f"+/ {fmt(val_inf_am)}")
+        
+    for i, pt in enumerate(diem):
+        dau_truoc = dau_yp[i]
+        dau_sau = dau_yp[i+1]
+        
+        if pt in nghiem_mau:
+            lim_trai = sp.limit(y_sym, x_sym, pt, dir='-')
+            lim_phai = sp.limit(y_sym, x_sym, pt, dir='+')
+            pos_trai = "+" if dau_truoc == "+" else "-"
+            pos_phai = "-" if dau_sau == "+" else "+"
+            tkz_tab_var.append(f"{pos_trai}D{pos_phai}/ {fmt(lim_trai)} / {fmt(lim_phai)}")
+        else:
+            val_pt = y_sym.subs(x_sym, pt)
+            if dau_truoc == "+" and dau_sau == "-":
+                tkz_tab_var.append(f"+/ {fmt(val_pt)}")
+            elif dau_truoc == "-" and dau_sau == "+":
+                tkz_tab_var.append(f"-/ {fmt(val_pt)}")
+            else:
+                # Sử dụng 'R/' để tkz-tab vẽ mũi tên xuyên thẳng qua điểm uốn
+                tkz_tab_var.append(f"R/ {fmt(val_pt)}")
+                
+    val_inf_duong = sp.limit(y_sym, x_sym, sp.oo)
+    tkz_tab_var.append(f"+/ {fmt(val_inf_duong)}" if dau_yp[-1] == '+' else f"-/ {fmt(val_inf_duong)}")
+        
+    y_var_str = "\\tkzTabVar{" + ", ".join(tkz_tab_var) + "}"
+    
+    latex_code = (
+        "\\begin{center}\n"
+        "\\begin{tikzpicture}\n"
+        "    % Tùy chỉnh mũi tên chuẩn Toán (stealth) và nới rộng khoảng cách dấu ||\n"
+        "    \\tikzset{>=stealth, double distance=2pt}\n"
+        "    \\tkzTabInit[nocadre=false, lgt=1.5, espcl=3.5, deltacl=0.8]\n"
+        "      {$x$ / 1.0, $y'$ / 1.0, $y$ / 2.5}\n"
+        f"      {x_str}\n"
+        f"    {y_prime_str}\n"
+        f"    {y_var_str}\n"
+        "\\end{tikzpicture}\n"
+        "\\end{center}"
+    )
+    return latex_code
+
+
+# ==========================================
+# 3. CÁC HÀM XỬ LÝ VẼ ĐỒ THỊ VÀ XUẤT MÃ TIKZ
+# ==========================================
 def tinh_toan_khung_do_thi(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
     x_pts = [float(n) for n in nghiem_thuc if n.is_real] + [0]
     
@@ -251,12 +390,12 @@ def sinh_ma_tikz(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
     
     return tikz
 
+
 # ==========================================
-# CẤU HÌNH GIAO DIỆN CHÍNH
+# 4. CẤU HÌNH GIAO DIỆN CHÍNH STREAMLIT
 # ==========================================
 st.set_page_config(page_title="Khảo Sát Hàm Số Tự Động", layout="centered")
 
-# Thêm Sidebar chứa thông tin tác giả và hướng dẫn
 with st.sidebar:
     st.markdown("### 👨‍💻 Thông tin tác giả")
     st.markdown("**Nguyễn Bùi Trường Vũ**")
@@ -274,13 +413,15 @@ with st.sidebar:
     )
     st.markdown("**Một số ví dụ:**")
     st.code("x**3 - 3*x**2 + 2", language="python")
+    st.code("-x**3 + 3*x**2 - 3*x - 1", language="python")
     st.code("(x + 2)/(x - 1)", language="python")
-    st.code("(-x**2 - 4*x - 5)/(x + 2)", language="python")
+    
+    st.warning("Ứng dụng tối ưu tốt nhất cho hàm đa thức và hàm phân thức.")
 
 st.title("Hệ Thống Khảo Sát Sự Biến Thiên")
 st.markdown("*Ứng dụng hỗ trợ trình bày lời giải step-by-step chuẩn SGK Toán THPT.*")
 
-bieu_thuc = st.text_input("Nhập hàm số y = f(x):", "(x+2)/(x-1)")
+bieu_thuc = st.text_input("Nhập hàm số y = f(x):", "-x**3 + 3*x**2 - 3*x - 1")
 
 if st.button("Bắt Đầu Khảo Sát"):
     x = sp.Symbol('x', real=True)
@@ -303,7 +444,9 @@ if st.button("Bắt Đầu Khảo Sát"):
                 tiem_can_y = thuong
                 loai_tc = "TCX"
 
+        # --- PHẦN I. TẬP XÁC ĐỊNH & GIỚI HẠN ---
         st.markdown("### I. TẬP XÁC ĐỊNH VÀ SỰ BIẾN THIÊN")
+        
         if not nghiem_mau:
             txđ = r"D = \mathbb{R}"
         else:
@@ -313,13 +456,18 @@ if st.button("Bắt Đầu Khảo Sát"):
         st.latex(txđ)
 
         st.write("**2. Giới hạn và Tiệm cận:**")
+        def fmt_lim(lim):
+            if lim == sp.oo: return r"+\infty"
+            if lim == -sp.oo: return r"-\infty"
+            return sp.latex(lim)
+
         if tiem_can_y is not None:
             tc_str = f"TCĐ: x = {sp.latex(nghiem_mau[0])}; \\quad {loai_tc}: y = {sp.latex(tiem_can_y)}"
             st.latex(tc_str)
         else:
             lim_am = sp.limit(y, x, -sp.oo)
             lim_duong = sp.limit(y, x, sp.oo)
-            st.latex(f"\\lim_{{x \\to -\\infty}} y = {sp.latex(lim_am)}; \\quad \\lim_{{x \\to +\\infty}} y = {sp.latex(lim_duong)}")
+            st.latex(f"\\lim_{{x \\to -\\infty}} y = {fmt_lim(lim_am)}; \\quad \\lim_{{x \\to +\\infty}} y = {fmt_lim(lim_duong)}")
 
         st.write("**3. Đạo hàm:**")
         st.latex(f"y' = {sp.latex(sp.simplify(sp.diff(y, x)))}")
@@ -330,16 +478,37 @@ if st.button("Bắt Đầu Khảo Sát"):
         else:
             st.latex(r"y' = 0 \text{ vô nghiệm}")
 
+        st.write("**4. Giao điểm với trục toạ độ:**")
+        giao_oy = y.subs(x, 0)
+        nghiem_ox = [sp.latex(n) for n in sp.solve(tu, x) if n.is_real and n not in nghiem_mau]
+        
+        oy_str = f"x = 0 \Rightarrow y = {sp.latex(giao_oy)}" if not sp.sympify(0) in nghiem_mau else r"x = 0 \text{ không thuộc TXĐ}"
+        ox_str = f"y = 0 \Rightarrow x \in \{{{', '.join(nghiem_ox)}\}}" if nghiem_ox else r"y = 0 \text{ vô nghiệm}"
+        st.latex(fr"{oy_str} \quad ; \quad {ox_str}")
+
+        # --- PHẦN II. BẢNG BIẾN THIÊN TRỰC QUAN ---
         st.markdown("### II. BẢNG BIẾN THIÊN")
+        st.info("Lưu ý: Do giới hạn kỹ thuật của Web, bảng mô phỏng buộc phải ngắt mũi tên tại điểm uốn. Tuy nhiên mã xuất Overleaf (bên dưới) vẫn sẽ tự động nối thành 1 dải liên tục chuẩn SGK.")
         st.latex(tao_bang_bien_thien_latex(y, y_prime, x, nghiem_thuc, nghiem_mau))
         
+        # --- PHẦN III. ĐỒ THỊ ---
         st.markdown("### III. ĐỒ THỊ MÔ PHỎNG")
         fig = ve_do_thi_sgk(y, x, nghiem_thuc, nghiem_mau, tiem_can_y)
         st.pyplot(fig)
         
-        st.markdown("### IV. XUẤT MÃ TIKZ (CHÈN OVERLEAF)")
-        st.info("Đã hỗ trợ vẽ Tiệm Cận Đứng, Ngang, Xiên và ngắt nét vẽ Hyperbol (Scope Domain).")
-        st.code(sinh_ma_tikz(y, x, nghiem_thuc, nghiem_mau, tiem_can_y), language='latex')
+        # --- PHẦN IV. XUẤT MÃ LATEX / TIKZ ---
+        st.markdown("### IV. XUẤT MÃ LATEX (CHÈN OVERLEAF)")
+        st.info("Đã tích hợp mã Tkz-Tab (Bảng biến thiên) và mã TikZ (Đồ thị) chuẩn SGK.")
+        
+        tab1, tab2 = st.tabs(["📊 Mã Bảng Biến Thiên (tkz-tab)", "📈 Mã Đồ Thị (TikZ)"])
+        
+        with tab1:
+            st.markdown("*Lưu ý: Bạn cần khai báo thư viện `\\usepackage{tkz-tab}` ở phần preamble của file LaTeX.*")
+            st.code(sinh_ma_bbt_tikz(y, y_prime, x, nghiem_thuc, nghiem_mau), language='latex')
+            
+        with tab2:
+            st.markdown("*Lưu ý: Bạn cần khai báo thư viện `\\usepackage{tikz}` ở phần preamble của file LaTeX.*")
+            st.code(sinh_ma_tikz(y, x, nghiem_thuc, nghiem_mau, tiem_can_y), language='latex')
 
     except Exception as e:
-        st.error(f"Đã xảy ra lỗi! Chi tiết lỗi: {e}")
+        st.error(f"Đã xảy ra lỗi! Vui lòng kiểm tra lại cú pháp hàm số.\n\nChi tiết lỗi: {e}")
