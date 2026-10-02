@@ -113,12 +113,12 @@ def sinh_ma_bbt_tikz(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
         dau_yp.append("+" if val > 0 else "-")
         
     def fmt(val):
-        if val == sp.oo: return r"$+\infty$"
-        if val == -sp.oo: return r"$-\infty$"
-        return f"${sp.latex(sp.simplify(val))}$"
+        if val == sp.oo: return r"\(+\infty\)"
+        if val == -sp.oo: return r"\(-\infty\)"
+        return f"\({sp.latex(sp.simplify(val))}\)"
 
     x_row_items = [r"-\infty"] + [sp.latex(sp.together(d)) for d in diem] + [r"+\infty"]
-    x_str = "{" + ", ".join([f"${item}$" for item in x_row_items]) + "}"
+    x_str = "{" + ", ".join([f"\({item}\)" for item in x_row_items]) + "}"
     
     tkz_tab_line = []
     for i, pt in enumerate(diem):
@@ -165,7 +165,7 @@ def sinh_ma_bbt_tikz(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
         "    % Tùy chỉnh mũi tên chuẩn Toán (stealth) và nới rộng khoảng cách dấu ||\n"
         "    \\tikzset{>=stealth, double distance=2pt}\n"
         "    \\tkzTabInit[nocadre=false, lgt=1.5, espcl=3.5, deltacl=0.8]\n"
-        "      {$x$ / 1.0, $y'$ / 1.0, $y$ / 2.5}\n"
+        "      {\(x\) / 1.0, \(y'\) / 1.0, \(y\) / 2.5}\n"
         f"      {x_str}\n"
         f"    {y_prime_str}\n"
         f"    {y_var_str}\n"
@@ -267,7 +267,7 @@ def ve_do_thi_sgk(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
             tc_val = float(nghiem_mau[0])
             y_i = float(tiem_can_y.subs(x_sym, tc_val))
             ax.plot(tc_val, y_i, 'ko', markersize=4)
-            ax.annotate('$I$', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12)
+            ax.annotate('\(I\)', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12)
 
     ax.spines['left'].set_position('zero')
     ax.spines['bottom'].set_position('zero')
@@ -303,12 +303,12 @@ def ve_do_thi_sgk(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
 
         if abs(x_val) > 0.05:
             x_latex = sp.latex(sp.together(xt))
-            ax.annotate(f'${x_latex}$', xy=(x_val, 0), xytext=(0, -22), textcoords='offset points', 
+            ax.annotate(f'\({x_latex}\)', xy=(x_val, 0), xytext=(0, -22), textcoords='offset points', 
                         ha='center', va='center', fontsize=11, bbox=bbox_props)
 
         if abs(y_val) > 0.05:
             y_latex = sp.latex(sp.together(sp.simplify(y_sym.subs(x_sym, xt))))
-            ax.annotate(f'${y_latex}$', xy=(0, y_val), xytext=(-24, 0), textcoords='offset points', 
+            ax.annotate(f'\({y_latex}\)', xy=(0, y_val), xytext=(-24, 0), textcoords='offset points', 
                         ha='center', va='center', fontsize=11, bbox=bbox_props)
 
     ax.set_xlim(x_min, x_max)
@@ -327,10 +327,10 @@ def sinh_ma_tikz(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
     
     tikz = "\\begin{center}\n"
     tikz += f"\\begin{{tikzpicture}}[>=stealth, x=1.2cm, y={y_scale}cm]\n"
-    tikz += f"    \\draw[->, line width=0.8pt] ({x_min - 0.5},0) -- ({x_max + 0.5},0) node[below] {{$x$}};\n"
-    tikz += f"    \\draw[->, line width=0.8pt] (0,{y_min - 0.5}) -- (0,{y_max + 0.5}) node[left] {{$y$}};\n"
+    tikz += f"    \\draw[->, line width=0.8pt] ({x_min - 0.5},0) -- ({x_max + 0.5},0) node[below] {{\(x\)}};\n"
+    tikz += f"    \\draw[->, line width=0.8pt] (0,{y_min - 0.5}) -- (0,{y_max + 0.5}) node[left] {{\(y\)}};\n"
     tikz += f"    \\fill (0,0) circle (1.5pt);\n"
-    tikz += f"    \\node[below right] at (0,0) {{$O$}};\n"
+    tikz += f"    \\node[below right] at (0,0) {{\(O\)}};\n"
     
     tikz += f"    \n    % Vạch chia\n"
     tikz += f"    \\foreach \\x in {{{x_ticks}}} {{\\draw[line width=0.6pt] (\\x, -2.5pt) -- (\\x, 2.5pt);}}\n"
@@ -350,7 +350,7 @@ def sinh_ma_tikz(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
             if nghiem_mau:
                 tc_val = float(nghiem_mau[0])
                 y_i = float(tiem_can_y.subs(x_sym, tc_val))
-                tikz += f"    \\fill ({tc_val:.3f},{y_i:.3f}) circle (1.5pt) node[above right] {{$I$}};\n"
+                tikz += f"    \\fill ({tc_val:.3f},{y_i:.3f}) circle (1.5pt) node[above right] {{\(I\)}};\n"
 
     tikz += f"    \n    % Điểm cực trị\n"
     for xt in nghiem_thuc:
@@ -358,8 +358,8 @@ def sinh_ma_tikz(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
         y_val = float(y_sym.subs(x_sym, xt))
         x_c = f"{x_val:.4f}"
         y_c = f"{y_val:.4f}"
-        x_latex = f"${sp.latex(sp.together(xt))}$"
-        y_latex = f"${sp.latex(sp.together(sp.simplify(y_sym.subs(x_sym, xt))))}$"
+        x_latex = f"\({sp.latex(sp.together(xt))}\)"
+        y_latex = f"\({sp.latex(sp.together(sp.simplify(y_sym.subs(x_sym, xt))))}\)"
         
         if abs(x_val) > 0.05 and abs(y_val) > 0.05:
             tikz += f"    \\draw[dashed, line width=0.5pt] ({x_c},0) -- ({x_c},{y_c}) -- (0,{y_c});\n"
@@ -398,7 +398,10 @@ st.set_page_config(page_title="Khảo Sát Hàm Số Tự Động", layout="cent
 
 with st.sidebar:
     st.markdown("### 👨‍💻 Thông tin tác giả")
-    st.markdown("**Nguyễn Bùi Trường Vũ**")
+    st.markdown("**Nguyễn Bùi Trường Vũ (Chính)**")
+    st.markdown("**Nguyễn Lương Lâm Sơn**")
+    st.markdown("**Võ Đăng Khoa**")
+    st.markdown("**Hoàng Kim Gia Bảo**")
     st.markdown("📞 **SĐT:** 0854085229")
     st.markdown("🎓 **Đơn vị:** Sinh viên năm 4 Khoa Toán DHS")
     
@@ -406,7 +409,7 @@ with st.sidebar:
     st.markdown("### 📝 Hướng dẫn nhập hàm số")
     st.info(
         "Nhập biểu thức theo cú pháp Python (SymPy):\n\n"
-        "- **Lũy thừa ($x^n$):** Dùng `**` (vd: `x**3`)\n"
+        "- **Lũy thừa (\(x^n\)):** Dùng `**` (vd: `x**3`)\n"
         "- **Phân thức:** Đặt tử và mẫu trong ngoặc tròn `()`\n"
         "- **Nhân/chia:** Dùng `*`, `/`\n"
         "- **Căn bậc hai:** `sqrt(x)`\n"
