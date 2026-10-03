@@ -3,6 +3,7 @@ import sympy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+import io # Thêm thư viện io để xử lý ảnh tĩnh
 
 # ==========================================
 # 1. HÀM VẼ BẢNG BIẾN THIÊN TRÊN WEB (An toàn với KaTeX - Không dùng multicolumn)
@@ -267,8 +268,8 @@ def ve_do_thi_sgk(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
             tc_val = float(nghiem_mau[0])
             y_i = float(tiem_can_y.subs(x_sym, tc_val))
             ax.plot(tc_val, y_i, 'ko', markersize=4)
-            # FIXED: Bỏ dấu $ và dùng fontstyle='italic' để tránh lỗi Streamlit KaTeX trên biểu đồ
-            ax.annotate('I', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12, fontstyle='italic')
+            # Khôi phục nhãn \(I\) chuẩn Toán học vì đã có ảnh tĩnh bảo vệ
+            ax.annotate('\(I\)', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12)
 
     ax.spines['left'].set_position('zero')
     ax.spines['bottom'].set_position('zero')
@@ -498,8 +499,12 @@ if st.button("Bắt Đầu Khảo Sát"):
         # --- PHẦN III. ĐỒ THỊ ---
         st.markdown("### III. ĐỒ THỊ MÔ PHỎNG")
         fig = ve_do_thi_sgk(y, x, nghiem_thuc, nghiem_mau, tiem_can_y)
-        # FIXED: Render đồ thị ra định dạng png tĩnh để Streamlit không chèn ép định dạng KaTeX vào matplotlib
-        st.pyplot(fig, format="png")
+        
+        # FIXED: Render đồ thị ra bộ nhớ đệm (buffer) ảnh tĩnh PNG.
+        # Khắc phục 100% việc Streamlit dịch nhầm các điểm tọa độ số thành \(\)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches='tight')
+        st.image(buf, use_container_width=True)
         
         # --- PHẦN IV. XUẤT MÃ LATEX / TIKZ ---
         st.markdown("### IV. XUẤT MÃ LATEX (CHÈN OVERLEAF)")
