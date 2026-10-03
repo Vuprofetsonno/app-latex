@@ -92,6 +92,7 @@ def tao_bang_bien_thien_latex(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
     )
     return latex_str
 
+
 # ==========================================
 # 2. HÀM XUẤT MÃ LATEX BẢNG BIẾN THIÊN (TKZ-TAB CHUẨN OVERLEAF)
 # ==========================================
@@ -151,7 +152,6 @@ def sinh_ma_bbt_tikz(y_sym, y_prime, x_sym, nghiem_thuc, nghiem_mau):
             elif dau_truoc == "-" and dau_sau == "+":
                 tkz_tab_var.append(f"-/ {fmt(val_pt)}")
             else:
-                # Sử dụng 'R/' để tkz-tab vẽ mũi tên xuyên thẳng qua điểm uốn
                 tkz_tab_var.append(f"R/ {fmt(val_pt)}")
                 
     val_inf_duong = sp.limit(y_sym, x_sym, sp.oo)
@@ -267,7 +267,8 @@ def ve_do_thi_sgk(y_sym, x_sym, nghiem_thuc, nghiem_mau, tiem_can_y):
             tc_val = float(nghiem_mau[0])
             y_i = float(tiem_can_y.subs(x_sym, tc_val))
             ax.plot(tc_val, y_i, 'ko', markersize=4)
-            ax.annotate('\(I\)', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12)
+            # FIXED: Bỏ dấu $ và dùng fontstyle='italic' để tránh lỗi Streamlit KaTeX trên biểu đồ
+            ax.annotate('I', xy=(tc_val, y_i), xytext=(8, 8), textcoords='offset points', fontsize=12, fontstyle='italic')
 
     ax.spines['left'].set_position('zero')
     ax.spines['bottom'].set_position('zero')
@@ -497,7 +498,8 @@ if st.button("Bắt Đầu Khảo Sát"):
         # --- PHẦN III. ĐỒ THỊ ---
         st.markdown("### III. ĐỒ THỊ MÔ PHỎNG")
         fig = ve_do_thi_sgk(y, x, nghiem_thuc, nghiem_mau, tiem_can_y)
-        st.pyplot(fig)
+        # FIXED: Render đồ thị ra định dạng png tĩnh để Streamlit không chèn ép định dạng KaTeX vào matplotlib
+        st.pyplot(fig, format="png")
         
         # --- PHẦN IV. XUẤT MÃ LATEX / TIKZ ---
         st.markdown("### IV. XUẤT MÃ LATEX (CHÈN OVERLEAF)")
